@@ -58,3 +58,18 @@ MAC_EXTRACT_REGEX = r"[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}"
 
 # `ip neigh` states that mean the entry is not actually usable
 ARP_INVALID_STATES = ["FAILED", "INCOMPLETE"]
+
+# ---------------------------------------------------------------------------
+# Category 3: SSH / System Validation
+# ---------------------------------------------------------------------------
+
+# Kernel release string reported by U-Boot during boot (see boot_monitoring_test.robot);
+# uname -r on a live system should match this exactly.
+EXPECTED_KERNEL_RELEASE = "4.19.94-ti-r42"
+
+MAX_ROOT_FS_USAGE_PERCENT = 90
+MIN_AVAILABLE_MEMORY_MB = 50
+MAX_LOAD_AVERAGE_1MIN = 3.0
+MAX_SANE_UPTIME_SEC = 2592000  # 30 days; catches parsing bugs returning garbage
+
+CRITICAL_SERVICES = ["ssh", "connman"]
