@@ -6,6 +6,9 @@ Safe to commit — contains no credentials.
 # Serial console prompt that signals boot completion
 BOOT_LOGIN_PROMPT = "login:"
 
+# Root shell prompt on this image ends in '#'
+SHELL_PROMPT_MARKER = "#"
+
 # U-Boot bootloader banner pattern (major.minor version)
 UBOOT_VERSION_PATTERN = r"U-Boot \d{4}\.\d{2}"
 
