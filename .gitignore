@@ -3,12 +3,12 @@ venv/
 __pycache__/
 *.pyc
 
-# Секрети — НІКОЛИ не комітити
+# Secrets — NEVER commit
 config/secrets.py
 
-# Звіти виконання Robot Framework
+# Robot Framework execution reports
 results/*
 !results/.gitkeep
 
-# ОС-специфічне
+# OS-specific
 .DS_Store
