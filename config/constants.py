@@ -1,5 +1,5 @@
 """
-Shared, non-secret test constants for boot log analysis.
+Shared, non-secret test constants for BeagleBone Black validation.
 Safe to commit — contains no credentials.
 """
 
@@ -31,3 +31,30 @@ KNOWN_BENIGN_WARNINGS = [
     "No match for driver 'omap_hsmmc'",
     "Card did not respond to voltage select",
 ]
+
+# ---------------------------------------------------------------------------
+# Category 2: Network Layer
+# ---------------------------------------------------------------------------
+
+BBB_IP_ADDRESS = "10.0.0.2"
+
+# Basic connectivity ping: small sample, zero tolerance for loss
+PING_BASIC_COUNT = 4
+PING_BASIC_TIMEOUT_SEC = 2
+PING_BASIC_MAX_LOSS_PERCENT = 0.0
+
+# Sustained/load ping: larger sample, small tolerance for loss
+PING_LOAD_COUNT = 120
+PING_LOAD_TIMEOUT_SEC = 2
+PING_LOAD_MAX_LOSS_PERCENT = 2.0
+
+# Regex for parsing "X% packet loss" out of ping summary output
+PING_LOSS_REGEX = r"(\d+(?:\.\d+)?)%\s+packet loss"
+
+# Regex for validating a full standalone MAC address string
+MAC_ADDRESS_REGEX = r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
+# Regex for extracting a MAC address out of larger `ip neigh` output
+MAC_EXTRACT_REGEX = r"[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}"
+
+# `ip neigh` states that mean the entry is not actually usable
+ARP_INVALID_STATES = ["FAILED", "INCOMPLETE"]
