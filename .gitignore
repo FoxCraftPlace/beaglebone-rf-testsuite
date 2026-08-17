@@ -1,0 +1,14 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Секрети — НІКОЛИ не комітити
+config/secrets.py
+
+# Звіти виконання Robot Framework
+results/*
+!results/.gitkeep
+
+# ОС-специфічне
+.DS_Store
