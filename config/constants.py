@@ -136,3 +136,27 @@ MAX_BOOT_TIME_VARIANCE_SEC = 30
 # Stress tests report a statistical pass rate rather than demanding 100%: real hardware
 # can have an occasional flaky cycle, and characterizing the failure rate is the point.
 MIN_REBOOT_SUCCESS_RATE_PERCENT = 80
+
+# ---------------------------------------------------------------------------
+# U-Boot Console Validation (supplemental category -- active CLI inspection)
+# ---------------------------------------------------------------------------
+
+# U-Boot's interactive command prompt.
+UBOOT_PROMPT_MARKER = "=> "
+
+# NOTE: not yet calibrated against a real timed run -- this is a starting
+# estimate covering a normal Linux graceful shutdown plus SPL/U-Boot init,
+# with margin. After the first real execution, check how many seconds
+# actually elapsed between the reboot command and the '=>' prompt and
+# tighten this if there's room, same approach as BOOT_TIME_THRESHOLD_SEC.
+UBOOT_INTERRUPT_MAX_WAIT_SEC = 15
+
+# Raw env values as reported by U-Boot itself -- an independent source from
+# the friendly "BeagleBone Black" banner string Category 1 checks against.
+EXPECTED_BOARD_NAME_ENV = "A335BNLT"
+EXPECTED_BOARD_REV_ENV = "00C0"
+
+EXPECTED_BOOTCMD_SUBSTRING = "distro_bootcmd"
+EXPECTED_LOADADDR = "0x82000000"
+EXPECTED_FDTADDR = "0x88000000"
+EXPECTED_CONSOLE_SETTING = "ttyO0,115200n8"
