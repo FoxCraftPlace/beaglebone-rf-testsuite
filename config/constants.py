@@ -3,6 +3,12 @@ Shared, non-secret test constants for BeagleBone Black validation.
 Safe to commit — contains no credentials.
 """
 
+# Calibrated from real measurement: single-run baseline was 60s. 75s gives ~25% margin
+# for normal run-to-run jitter (fsck, network negotiation, scheduler variance) while
+# still catching genuine regressions. Shared by Category 1 (single reboot) and
+# Category 5 (repeated reboot cycles) so both use the exact same calibrated bar.
+BOOT_TIME_THRESHOLD_SEC = 75
+
 # Serial console prompt that signals boot completion
 BOOT_LOGIN_PROMPT = "login:"
 
@@ -105,3 +111,28 @@ CLEAN_SHUTDOWN_MARKERS = [
 ]
 
 MAX_JOURNAL_DISK_USAGE_MB = 50
+
+# ---------------------------------------------------------------------------
+# Category 5: Stress / Reboot Cycles
+# ---------------------------------------------------------------------------
+
+# Number of consecutive reboot cycles to run in Suite Setup, all over the serial
+# console -- the exact same trigger-and-capture mechanism Category 1 uses for its
+# single reboot, just repeated. Each cycle costs roughly one full boot, so keep this
+# modest -- 5 cycles is already a several-minute Suite Setup.
+REBOOT_CYCLE_COUNT = 5
+
+# Absolute ceiling to wait for the login prompt on any one cycle before giving up on
+# it entirely. Deliberately looser than BOOT_TIME_THRESHOLD_SEC (the actual pass/fail
+# bar, checked separately per cycle) so a slow-but-still-booting cycle gets captured
+# and evaluated rather than cut off right at the threshold.
+REBOOT_CYCLE_CAPTURE_TIMEOUT_SEC = 150
+
+# Max allowed spread (max - min) in per-cycle boot time across all successful cycles,
+# to catch inconsistent/degrading behavior even when every individual cycle is under
+# BOOT_TIME_THRESHOLD_SEC. NOTE: not yet calibrated against a real multi-cycle run.
+MAX_BOOT_TIME_VARIANCE_SEC = 30
+
+# Stress tests report a statistical pass rate rather than demanding 100%: real hardware
+# can have an occasional flaky cycle, and characterizing the failure rate is the point.
+MIN_REBOOT_SUCCESS_RATE_PERCENT = 80

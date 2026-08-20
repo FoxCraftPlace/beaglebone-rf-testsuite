@@ -11,13 +11,6 @@ Variables         ../../config/constants.py
 Suite Setup       Reboot DUT And Capture Boot Log
 Suite Teardown    Close Serial Connection To DUT
 
-*** Variables ***
-# Calibrated from real measurement: single-run baseline was 60s.
-# 75s gives ~25% margin for normal run-to-run jitter (fsck, network
-# negotiation, scheduler variance) while still catching genuine
-# regressions. Revisit after collecting a few more real runs.
-${BOOT_TIME_THRESHOLD}    75
-
 *** Test Cases ***
 Boot Log Should Be Captured
     [Documentation]    Sanity check — capture actually reached the login
@@ -39,8 +32,8 @@ Boot Time Should Be Within Threshold
     [Documentation]    DUT must reach the login prompt within an
     ...                acceptable time after a software reboot.
     [Tags]    serial    performance
-    Should Be True    ${BOOT_DURATION} <= ${BOOT_TIME_THRESHOLD}
-    ...    msg=Boot took ${BOOT_DURATION}s, exceeding ${BOOT_TIME_THRESHOLD}s
+    Should Be True    ${BOOT_DURATION} <= ${BOOT_TIME_THRESHOLD_SEC}
+    ...    msg=Boot took ${BOOT_DURATION}s, exceeding ${BOOT_TIME_THRESHOLD_SEC}s
 
 U-Boot Banner Should Match Expected Version
     [Tags]    serial    bootloader
