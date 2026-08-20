@@ -41,8 +41,8 @@ Previous Boot Should Have Ended With A Clean Shutdown Sequence
     [Documentation]    Looks at the tail of the previous boot's journal for markers that
     ...    the system went down via an orderly shutdown/reboot target rather than a
     ...    crash or hard power loss. Skips with a note if there is no previous boot yet.
-    ...    The exact marker text is not yet verified against this board's real journal
-    ...    output -- see the NOTE next to CLEAN_SHUTDOWN_MARKERS in constants.py.
+    ...    Marker text verified against real journal output on this board:
+    ...    'Reached target Shutdown' and 'Reached target Reboot' both confirmed present.
     [Setup]    Ensure SSH Session Is Available
     ${tail}=    Get Previous Boot Tail
     IF    not $tail

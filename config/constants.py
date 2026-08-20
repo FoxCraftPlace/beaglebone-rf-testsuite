@@ -101,10 +101,9 @@ OOM_KILLER_PATTERNS = [
 # 12 = 9 baseline + 25% margin, same approach as BOOT_TIME_THRESHOLD_SEC.
 MAX_ALLOWED_ERROR_JOURNAL_ENTRIES = 12
 
-# NOTE: exact wording depends on the systemd version and the reboot method;
-# not yet verified against this board's actual journal output. Run
-# `journalctl -b -1 -q --no-pager | tail -30` once on the DUT and confirm
-# these substrings actually appear before trusting this test.
+# Verified against real journal output on this board (journalctl -b -1
+# -q --no-pager | tail -30): both markers confirmed present after a
+# serial-triggered reboot.
 CLEAN_SHUTDOWN_MARKERS = [
     "Reached target Shutdown",
     "Reached target Reboot",
