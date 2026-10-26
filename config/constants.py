@@ -159,3 +159,35 @@ EXPECTED_BOOTCMD_SUBSTRING = "distro_bootcmd"
 EXPECTED_LOADADDR = "0x82000000"
 EXPECTED_FDTADDR = "0x88000000"
 EXPECTED_CONSOLE_SETTING = "ttyO0,115200n8"
+
+# ---------------------------------------------------------------------------
+# Power control (USB-serial relay, NC wiring)
+# ---------------------------------------------------------------------------
+
+# CH340 relay module behind a stable udev symlink (/etc/udev/rules.d/99-bench.rules).
+RELAY_PORT = "/dev/relay0"
+RELAY_BAUDRATE = 9600
+
+# NC wiring: energizing the coil OPENS the contact -> DUT loses power.
+# Byte sequences verified on the real module (relay clicks on each command).
+RELAY_CMD_ENERGIZE_HEX = "A0 01 01 A2"
+RELAY_CMD_RELEASE_HEX = "A0 01 00 A1"
+
+# How long power stays off so the board fully de-energizes (caps, UART back-feed).
+POWER_OFF_HOLD_SEC = 5
+
+# Graceful shutdown over serial before the relay cuts power.
+# Marker verified on a real run: seen on the console after poweroff.
+POWEROFF_MARKER = "Power down"
+POWEROFF_WAIT_SEC = 60
+
+# Cold boot = relay power-on to login prompt (no shutdown time included, unlike the
+# old serial-reboot measurement). Calibrated from a real run: 57.4s measured, 72s gives
+# ~25% margin, same approach as BOOT_TIME_THRESHOLD_SEC.
+COLD_BOOT_TIME_THRESHOLD_SEC = 72
+COLD_BOOT_CAPTURE_TIMEOUT_SEC = 150
+
+# Don't nudge the console with Enter before this many seconds after power-on:
+# U-Boot has autoboot delay 0, and a stray keypress at the wrong moment drops the
+# board into the U-Boot prompt instead of booting.
+COLD_BOOT_NUDGE_AFTER_SEC = 30
