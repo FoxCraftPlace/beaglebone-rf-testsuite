@@ -1,23 +1,26 @@
 *** Settings ***
 Documentation     Reusable keywords for the Category 5 reboot-stress suite.
 ...
-...               Reboots are triggered and captured entirely over the serial console,
-...               reusing the exact same primitives as Category 1's single-reboot boot
-...               monitoring (serial_keywords.resource), just repeated
-...               ${REBOOT_CYCLE_COUNT} times. This keeps the suite's core pass/fail
-...               verdict independent of the network/SSH layers -- validating those is
-...               Category 2/3's job, not this one's.
+...               Every cycle is a full power cycle: Cold Boot DUT
+...               (power_keywords.resource) shuts the DUT down gracefully over the
+...               serial console, cuts and restores its power with the relay and
+...               captures the console from the first byte of the new boot -- the
+...               same sequence Category 1 uses for its single cold boot, just
+...               repeated ${REBOOT_CYCLE_COUNT} times. This keeps the suite's core
+...               pass/fail verdict independent of the network/SSH layers --
+...               validating those is Category 2/3's job, not this one's.
 Library           Collections
 Resource          serial_keywords.resource
+Resource          power_keywords.resource
 Resource          log_keywords.resource
 
 
 *** Keywords ***
 Run Reboot Stress Cycles
     [Documentation]    Opens the serial console once, then runs ${REBOOT_CYCLE_COUNT}
-    ...    consecutive reboot cycles over it, storing the per-cycle results as a list
+    ...    consecutive power cycles over it, storing the per-cycle results as a list
     ...    of dictionaries in ${REBOOT_CYCLE_RESULTS}. Intended for Suite Setup; pair
-    ...    with 'Close Serial Connection To DUT' (from serial_keywords.resource) as
+    ...    with 'Restore Power And Close Serial' (from power_keywords.resource) as
     ...    Suite Teardown.
     Open Serial Connection To DUT
     @{cycle_results}=    Create List
@@ -30,23 +33,21 @@ Run Reboot Stress Cycles
     Set Suite Variable    ${REBOOT_CYCLE_RESULTS}    ${cycle_results}
 
 Run Single Reboot Cycle
-    [Documentation]    Logs into the serial console and triggers 'reboot', then
-    ...    captures the boot log up to the next login prompt -- the same mechanism
-    ...    Category 1 uses for its single reboot, just called in a loop here. If the
-    ...    console doesn't respond to trigger the reboot at all (e.g. left stuck by a
-    ...    previous cycle), that failure is captured in the result instead of aborting
-    ...    the remaining cycles.
+    [Documentation]    One power cycle with Cold Boot DUT: graceful shutdown over the
+    ...    serial console, relay cut, relay restored, then the boot log up to the next
+    ...    login prompt. A boot that never reaches the login prompt is a failed cycle
+    ...    whose log is kept as evidence. If the bench itself fails (relay or serial
+    ...    port), that error is captured in the result instead of aborting the
+    ...    remaining cycles. A board left hung by a cycle is recovered by the next
+    ...    one, whose shutdown falls back to a plain relay power cut.
     [Arguments]    ${cycle_number}
-    ${trigger_status}    ${trigger_error}=    Run Keyword And Ignore Error
-    ...    Login To Serial Console And Trigger Reboot
-    IF    '${trigger_status}' != 'PASS'
+    TRY
+        ${log}    ${duration}=    Cold Boot DUT
+    EXCEPT    AS    ${error}
         &{result}=    Create Dictionary    cycle=${cycle_number}    success=${FALSE}
-        ...    boot_time_sec=${NONE}    boot_log=${EMPTY}    error=${trigger_error}
+        ...    boot_time_sec=${NONE}    boot_log=${EMPTY}    error=${error}
         RETURN    ${result}
     END
-
-    ${log}    ${duration}=    Capture Boot Log Until Login Prompt
-    ...    max_wait=${REBOOT_CYCLE_CAPTURE_TIMEOUT_SEC}
     Save Boot Log To File    ${log}
     ${reached_login}=    Run Keyword And Return Status
     ...    Should Contain    ${log}    ${BOOT_LOGIN_PROMPT}
