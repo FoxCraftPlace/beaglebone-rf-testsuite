@@ -6,10 +6,11 @@ Hardware-in-the-Loop test automation for a BeagleBone Black, written in Robot Fr
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-ARM64%20%7C%20Raspberry%20Pi%205-A22846?logo=raspberrypi&logoColor=white)
 ![DUT](https://img.shields.io/badge/DUT-BeagleBone%20Black-00CC66)
+![CI](https://img.shields.io/badge/CI-Jenkins-D24939?logo=jenkins&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-36%20passing-2ea44f)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 
-This is a Robot Framework test suite for a BeagleBone Black, driven from a Raspberry Pi 5 over serial and Ethernet, with a USB relay switching the board's power. It power-cycles the board with the relay, watches the cold boot over UART, inspects the U-Boot environment mid-boot, brings the board up on the network, checks its running state over SSH, and runs five consecutive power cycles to check that the boots succeed in a consistent time — producing a Robot Framework report and log on each run.
+This is a Robot Framework test suite for a BeagleBone Black, driven from a Raspberry Pi 5 over serial and Ethernet, with a USB relay switching the board's power. It power-cycles the board with the relay, watches the cold boot over UART, inspects the U-Boot environment mid-boot, brings the board up on the network, checks its running state over SSH, and runs five consecutive power cycles to check that the boots succeed in a consistent time — producing a Robot Framework report and log on each run. A Jenkins pipeline on the same Raspberry Pi runs the suite on the real board and publishes the results (see [CI (Jenkins)](#ci-jenkins)).
 
 Every test runs against physical hardware: a real BeagleBone Black connected to a real Raspberry Pi over UART, a direct Ethernet link, and a relay-switched power supply. There is no emulation and no mocked transport layer.
 
@@ -22,6 +23,7 @@ Every test runs against physical hardware: a real BeagleBone Black connected to 
 | **Power Control**      | USB-serial relay (CH340) in the DUT's positive 5 V lead, driven over pyserial |
 | **Boot Image**         | BeagleBoard.org Debian Buster IoT Image 2020-04-06 — U-Boot 2019.04-00002-g31a8ae0206, kernel 4.19.94-ti-r42 |
 | **Coverage**           | 36 test cases across 6 suites                                      |
+| **CI**                 | Jenkins pipeline (`Jenkinsfile`) on a build agent running directly on the Raspberry Pi |
 
 ---
 
@@ -37,6 +39,7 @@ Every test runs against physical hardware: a real BeagleBone Black connected to 
 - [Engineering War Stories](#engineering-war-stories)
 - [Getting Started](#getting-started)
 - [Reports](#reports)
+- [CI (Jenkins)](#ci-jenkins)
 - [Testing Philosophy](#testing-philosophy)
 - [Limitations](#limitations)
 - [Tech Stack](#tech-stack)
@@ -151,6 +154,7 @@ beaglebone-rf-testsuite/
 │       └── stress_test.robot
 ├── results/                       # generated log.html / report.html / output.xml / boot logs — gitignored, only .gitkeep is tracked
 ├── .gitignore
+├── Jenkinsfile                    # declarative pipeline: environment check, venv, dry run, full run, result publishing
 ├── LICENSE
 ├── README.md
 └── requirements.txt
@@ -312,6 +316,23 @@ Every run produces a standard Robot Framework `report.html` and `log.html` in `r
 
 ---
 
+## CI (Jenkins)
+
+The `Jenkinsfile` in the repository root is a declarative pipeline that runs the suite on the real board. Jenkins itself runs in a Docker container on the Raspberry Pi; the pipeline executes on a permanent SSH agent on the Pi host (label `pi-host`, one executor), because the UART adapter, the relay and the direct Ethernet link are attached to the host, not to the container. The agent runs as the `jenkins` user, a member of `dialout`.
+
+| Stage | What it does |
+|---|---|
+| Environment | Fails fast unless the agent user can read and write `/dev/bbb-uart` and `/dev/relay0` and can read the bench secrets file |
+| Prepare | Clears the previous build's results, copies the bench secrets to `config/secrets.py` with mode 600, creates a virtualenv and installs `requirements.txt` |
+| Dry run | `robot --dryrun` over all six suites — every keyword resolves, the board is not touched |
+| Full suite | Runs the six suites in dependency order, exactly as in [Getting Started](#getting-started) |
+
+When the run ends, the `post` block releases the relay so the DUT is left powered, counts the `WARN` entries in `output.xml`, archives `results/`, publishes the Robot Framework results on the build page and deletes the workspace copy of `secrets.py`.
+
+The credentials never enter the repository or the Jenkins job configuration: the secrets file lives on the bench at `/etc/bbb-bench/secrets.py` (owner root, group `jenkins`, mode 640). A single executor and `disableConcurrentBuilds()` serialize pipeline runs on the one board. A full run on this bench passed 36 of 36 tests with 0 `WARN` entries.
+
+---
+
 ## Testing Philosophy
 
 - **Bottom-up dependency ordering** — serial → U-Boot console → network → SSH → log analysis → reboot stress (see [Overview](#overview)).
@@ -331,7 +352,7 @@ Every run produces a standard Robot Framework `report.html` and `log.html` in `r
 - No test case uses `Hard Power Cycle DUT`, so failure modes that surface only after sudden power loss are not asserted.
 - The relay is commanded, but power is not measured: supply voltage and current are not read back.
 - The Ethernet link is a static point-to-point connection (`10.0.0.1` / `10.0.0.2`) configured directly on both hosts; DHCP and other dynamic-addressing paths are not under test.
-- Test runs are started manually from the command line; there is no scheduler or CI runner triggering regression runs.
+- CI runs on a single self-hosted agent on the bench itself: there is no hosted runner, and pipeline runs are serialized on the one board.
 - Keyword logic is exercised through live runs against the physical board rather than isolated unit tests — correctness is validated by hardware asserting on it, not by mocked transport inputs.
 
 ---
@@ -344,6 +365,7 @@ Every run produces a standard Robot Framework `report.html` and `log.html` in `r
 | **Test framework** | Robot Framework 7.4.2 |
 | **Libraries**       | robotframework-sshlibrary 3.8.0, robotframework-seriallibrary 0.4.3, paramiko 5.0.0, pyserial 3.5 (imported by `RelayPower` and by SerialLibrary, which does not declare it) — all pinned in `requirements.txt` |
 | **Hardware control** | USB-serial relay (CH340), `libraries/RelayPower.py` |
+| **CI**              | Jenkins 2.580.1 in Docker (`jenkins/jenkins:lts-jdk21`), Robot Framework plugin for Jenkins, SSH agent on the Pi host |
 | **Version control** | Git, Conventional Commits |
 | **Report serving**  | nginx |
 
