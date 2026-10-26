@@ -31,10 +31,10 @@ System Uptime Should Be Positive And Sane
     Should Be True    0 < ${uptime} < ${MAX_SANE_UPTIME_SEC}
     ...    msg=Uptime ${uptime}s is outside the sane range (0, ${MAX_SANE_UPTIME_SEC})
 
-Kernel Release Should Match The Version Reported At Boot
-    [Documentation]    Cross-checks 'uname -r' over SSH against the kernel version the
-    ...    serial boot log reported being loaded in Category 1, confirming the two data
-    ...    sources agree on what's actually running.
+Kernel Release Should Match The Expected Version
+    [Documentation]    Compares 'uname -r' over SSH with EXPECTED_KERNEL_RELEASE from
+    ...    config/constants.py, so a different running kernel is caught. The constant
+    ...    holds the release the U-Boot log reports loading (vmlinuz-<release>).
     [Setup]    Ensure SSH Session Is Available
     ${output}=    Execute Command    uname -r
     Should Be Equal As Strings    ${output}    ${EXPECTED_KERNEL_RELEASE}
