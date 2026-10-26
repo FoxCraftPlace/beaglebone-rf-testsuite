@@ -3,12 +3,6 @@ Shared, non-secret test constants for BeagleBone Black validation.
 Safe to commit — contains no credentials.
 """
 
-# Calibrated from real measurement: single-run baseline was 60s. 75s gives ~25% margin
-# for normal run-to-run jitter (fsck, network negotiation, scheduler variance) while
-# still catching genuine regressions. Shared by Category 1 (single reboot) and
-# Category 5 (repeated reboot cycles) so both use the exact same calibrated bar.
-BOOT_TIME_THRESHOLD_SEC = 75
-
 # Serial console prompt that signals boot completion
 BOOT_LOGIN_PROMPT = "login:"
 
@@ -98,7 +92,7 @@ OOM_KILLER_PATTERNS = [
 # pin conflict already documented as a war story in Category 1 (headless board, no HDMI
 # cape attached), plus two minimal-image userspace warnings (avahi chroot helper
 # missing, connman VPN plugin not installed) -- neither used on this test bench.
-# 12 = 9 baseline + 25% margin, same approach as BOOT_TIME_THRESHOLD_SEC.
+# 12 = 9 baseline + 25% margin, same approach as COLD_BOOT_TIME_THRESHOLD_SEC.
 MAX_ALLOWED_ERROR_JOURNAL_ENTRIES = 12
 
 # Verified against real journal output on this board (journalctl -b -1
@@ -115,22 +109,18 @@ MAX_JOURNAL_DISK_USAGE_MB = 50
 # Category 5: Stress / Reboot Cycles
 # ---------------------------------------------------------------------------
 
-# Number of consecutive reboot cycles to run in Suite Setup, all over the serial
-# console -- the exact same trigger-and-capture mechanism Category 1 uses for its
-# single reboot, just repeated. Each cycle costs roughly one full boot, so keep this
-# modest -- 5 cycles is already a several-minute Suite Setup.
+# Number of consecutive power cycles to run in Suite Setup. Each one is a graceful
+# shutdown over serial, a relay power cut and a cold boot captured from the first byte
+# (Cold Boot DUT) -- the same sequence Category 1 uses for its single cold boot, just
+# repeated. A cycle took ~73s on this bench, so 5 cycles is a ~6 minute Suite Setup.
 REBOOT_CYCLE_COUNT = 5
 
-# Absolute ceiling to wait for the login prompt on any one cycle before giving up on
-# it entirely. Deliberately looser than BOOT_TIME_THRESHOLD_SEC (the actual pass/fail
-# bar, checked separately per cycle) so a slow-but-still-booting cycle gets captured
-# and evaluated rather than cut off right at the threshold.
-REBOOT_CYCLE_CAPTURE_TIMEOUT_SEC = 150
-
-# Max allowed spread (max - min) in per-cycle boot time across all successful cycles,
-# to catch inconsistent/degrading behavior even when every individual cycle is under
-# BOOT_TIME_THRESHOLD_SEC. NOTE: not yet calibrated against a real multi-cycle run.
-MAX_BOOT_TIME_VARIANCE_SEC = 30
+# Max allowed spread (max - min) in per-cycle cold-boot time across all successful
+# cycles, to catch inconsistent/degrading behavior even when every individual cycle is
+# under COLD_BOOT_TIME_THRESHOLD_SEC. Calibrated from a real 5-cycle run: 57s on every
+# cycle, spread 0s (times are whole seconds). With ~57s boots, 10s trips at 68s -- ahead
+# of the 72s absolute limit -- while the previous 30s could only trip above it.
+MAX_BOOT_TIME_VARIANCE_SEC = 10
 
 # Stress tests report a statistical pass rate rather than demanding 100%: real hardware
 # can have an occasional flaky cycle, and characterizing the failure rate is the point.
@@ -143,11 +133,11 @@ MIN_REBOOT_SUCCESS_RATE_PERCENT = 80
 # U-Boot's interactive command prompt.
 UBOOT_PROMPT_MARKER = "=> "
 
-# NOTE: not yet calibrated against a real timed run -- this is a starting
-# estimate covering a normal Linux graceful shutdown plus SPL/U-Boot init,
-# with margin. After the first real execution, check how many seconds
-# actually elapsed between the reboot command and the '=>' prompt and
-# tighten this if there's room, same approach as BOOT_TIME_THRESHOLD_SEC.
+# NOTE: not yet calibrated against enough timed runs -- 15s is a starting estimate for
+# SPL/U-Boot init after a relay power-on, with generous margin. The seconds until the
+# '=>' prompt are logged on every run ("U-Boot console reached=... after power-on"); the
+# first real run reached it after 1s. Tighten this once more runs are logged, same
+# approach as COLD_BOOT_TIME_THRESHOLD_SEC.
 UBOOT_INTERRUPT_MAX_WAIT_SEC = 15
 
 # Raw env values as reported by U-Boot itself -- an independent source from
@@ -181,10 +171,16 @@ POWER_OFF_HOLD_SEC = 5
 POWEROFF_MARKER = "Power down"
 POWEROFF_WAIT_SEC = 60
 
-# Cold boot = relay power-on to login prompt (no shutdown time included, unlike the
-# old serial-reboot measurement). Calibrated from a real run: 57.4s measured, 72s gives
-# ~25% margin, same approach as BOOT_TIME_THRESHOLD_SEC.
+# Cold boot = relay power-on to login prompt (no shutdown time included). Calibrated
+# from a real run: 57.4s measured, 72s gives ~25% margin for normal run-to-run jitter
+# while still catching genuine regressions. A later 5-cycle stress run measured 57s on
+# every cycle.
 COLD_BOOT_TIME_THRESHOLD_SEC = 72
+
+# Absolute ceiling to wait for the login prompt after power-on before giving up on the
+# boot. Deliberately looser than COLD_BOOT_TIME_THRESHOLD_SEC (the actual pass/fail
+# bar, checked separately) so a slow-but-still-booting board is captured and evaluated
+# rather than cut off right at the threshold.
 COLD_BOOT_CAPTURE_TIMEOUT_SEC = 150
 
 # Don't nudge the console with Enter before this many seconds after power-on:
