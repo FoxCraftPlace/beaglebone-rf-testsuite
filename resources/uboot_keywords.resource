@@ -29,6 +29,9 @@ Power Cycle DUT And Interrupt Autoboot
     ...                depend on how long each Write/Read/Sleep cycle actually
     ...                takes. The wait window starts at power-on; the time it
     ...                took to reach the '=>' prompt is logged for calibration.
+    ...                Whether the prompt was reached is recorded in the
+    ...                DUT_HELD_AT_UBOOT suite variable, which tells the Suite
+    ...                Teardown if the board is waiting for a 'boot' command.
     [Arguments]    ${max_wait}=${UBOOT_INTERRUPT_MAX_WAIT_SEC}
     Graceful Power Cycle DUT
     ${start}=    Get Time    epoch
@@ -46,6 +49,7 @@ Power Cycle DUT And Interrupt Autoboot
         ${elapsed}=    Evaluate    ${now} - ${start}
         IF    ${elapsed} >= ${max_wait}    BREAK
     END
+    Set Suite Variable    ${DUT_HELD_AT_UBOOT}    ${reached}
     ${now}=    Get Time    epoch
     ${elapsed}=    Evaluate    ${now} - ${start}
     Log    U-Boot console reached=${reached} ${elapsed}s after power-on
@@ -70,6 +74,7 @@ Resume Normal Boot From U-Boot Console
     ...                ${BOOT_LOG}/${BOOT_DURATION} for any test that wants
     ...                to check the second half of the boot too.
     Write Data    boot\r\n
+    Set Suite Variable    ${DUT_HELD_AT_UBOOT}    ${FALSE}
     ${log}    ${duration}=    Capture Boot Log Until Login Prompt
     Set Suite Variable    ${BOOT_LOG}    ${log}
     Set Suite Variable    ${BOOT_DURATION}    ${duration}
@@ -90,13 +95,23 @@ Power Cycle Interrupt Capture Env And Resume Boot
 
 Ensure DUT Is Powered And Not Stuck At U-Boot Console
     [Documentation]    Safety-net Suite Teardown, best-effort whatever failed
-    ...                earlier. First 'boot' lets a DUT that is sitting at the
-    ...                '=>' prompt continue booting -- this goes first on
-    ...                purpose: once power is (re)applied, any byte on the
-    ...                console could interrupt autoboot (bootdelay 0). Then the
-    ...                relay is released so the bench is never left with the
-    ...                DUT unpowered, and the port is closed.
-    Run Keyword And Ignore Error    Write Data    boot\r\n
-    Run Keyword And Ignore Error    Sleep    2s
+    ...                earlier. 'boot' is written only while the suite is still
+    ...                holding the DUT at the '=>' prompt (DUT_HELD_AT_UBOOT
+    ...                suite variable: set when the prompt is reached, cleared
+    ...                once 'boot' has been sent). After a normal run the console
+    ...                sits at the Linux login prompt, where 'boot' would be
+    ...                typed in as a user name. Nothing is written to the console
+    ...                after the relay is released: with bootdelay 0 any byte
+    ...                could interrupt autoboot. The relay is always released, so
+    ...                the bench is never left with the DUT unpowered, and the
+    ...                port is closed.
+    ${held}=    Get Variable Value    ${DUT_HELD_AT_UBOOT}    ${FALSE}
+    IF    ${held}
+        Log    DUT is still held at the U-Boot prompt -- sending boot.
+        Run Keyword And Ignore Error    Write Data    boot\r\n
+        Run Keyword And Ignore Error    Sleep    2s
+    ELSE
+        Log    DUT is not held at the U-Boot prompt -- nothing is written to the console.
+    END
     Run Keyword And Continue On Failure    Power On DUT
     Close Serial Connection To DUT
