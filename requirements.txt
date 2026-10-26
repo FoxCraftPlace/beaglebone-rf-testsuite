@@ -1,0 +1,8 @@
+# Versions the suite was verified against (Python 3.14, Ubuntu 26.04, ARM64)
+robotframework==7.4.2
+robotframework-sshlibrary==3.8.0
+robotframework-seriallibrary==0.4.3
+# Imported directly by libraries/RelayPower.py
+pyserial==3.5
+# SSH backend of robotframework-sshlibrary
+paramiko==5.0.0
