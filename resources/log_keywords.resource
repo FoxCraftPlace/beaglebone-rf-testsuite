@@ -68,12 +68,3 @@ Parse Journal Disk Usage MB
         ${mb}=    Set Variable    ${value}
     END
     RETURN    ${mb}
-
-    Get Full Journal For Current Boot
-    [Documentation]    Returns the complete journal for the current boot,
-    ...    unfiltered by priority. Used for pattern-scanning checks (like
-    ...    OOM killer detection) that need to catch messages regardless of
-    ...    their log level -- unlike Get Journal Error Count For Current
-    ...    Boot, which deliberately only counts 'err' and above.
-    ${output}=    Execute Command    journalctl -b -q --no-pager
-    RETURN    ${output}
