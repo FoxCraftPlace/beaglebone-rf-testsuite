@@ -77,9 +77,3 @@ Power Cycle DUT And Capture Boot Log
     Set Suite Variable    ${BOOT_LOG}    ${log}
     Set Suite Variable    ${BOOT_DURATION}    ${duration}
     Save Boot Log To File    ${log}
-
-Restore Power And Close Serial
-    [Documentation]    Whatever happened in the suite, never leave the bench with
-    ...                the DUT unpowered.
-    Run Keyword And Continue On Failure    Power On DUT
-    Close Serial Connection To DUT
