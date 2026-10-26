@@ -1,12 +1,12 @@
 *** Settings ***
 Documentation     Power control of the BeagleBone Black through the USB-serial
 ...               relay (NC wiring: coil energized = DUT unpowered), plus the
-...               cold-boot sequence built on top of it.
+...               power-cycle sequences built on top of it.
 ...
 ...               Two levels on purpose:
-...               - Cold Boot DUT: graceful 'poweroff' over serial first, then
-...                 the relay cut. A true cold start with no filesystem risk --
-...                 used by suite setups.
+...               - Graceful Power Cycle DUT / Cold Boot DUT: graceful 'poweroff'
+...                 over serial first, then the relay cut. A true cold start with
+...                 no filesystem risk -- used by suite setups.
 ...               - Hard Power Cycle DUT: power is cut with no shutdown at all.
 ...                 Reserved for dedicated power-loss tests (limited cycles,
 ...                 eMMC wear).
@@ -57,20 +57,24 @@ Shutdown DUT Gracefully Over Serial
     Sleep    2s
     RETURN    ${seen}
 
-Cold Boot DUT
-    [Documentation]    Graceful shutdown (optional) -> relay off -> hold -> relay on,
-    ...                then captures the console from the very first byte of the new
-    ...                boot (SPL included). Requires the serial port to be open.
-    ...                Returns the boot log and the seconds from power-on to the
-    ...                login prompt.
-    [Arguments]    ${graceful}=${TRUE}
-    IF    ${graceful}
-        Shutdown DUT Gracefully Over Serial
-    END
+Graceful Power Cycle DUT
+    [Documentation]    Graceful shutdown over serial -> relay off -> hold -> relay on.
+    ...                Returns right after power is applied, WITHOUT capturing the
+    ...                console, so the caller decides how to consume the new boot
+    ...                (passive capture, or interrupting U-Boot). Stale shutdown output
+    ...                is flushed just before power-on. Requires the serial port to be
+    ...                open.
+    Shutdown DUT Gracefully Over Serial
     Power Off DUT
     Sleep    ${POWER_OFF_HOLD_SEC}s
     ${stale}=    Read All Data
     Power On DUT
+
+Cold Boot DUT
+    [Documentation]    Graceful Power Cycle DUT, then captures the console from the
+    ...                very first byte of the new boot (SPL included). Returns the
+    ...                boot log and the seconds from power-on to the login prompt.
+    Graceful Power Cycle DUT
     ${log}    ${duration}=    Capture Boot Log Until Login Prompt
     ...    ${COLD_BOOT_CAPTURE_TIMEOUT_SEC}    nudge_after_s=${COLD_BOOT_NUDGE_AFTER_SEC}
     RETURN    ${log}    ${duration}
