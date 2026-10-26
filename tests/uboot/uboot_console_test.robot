@@ -1,17 +1,19 @@
 *** Settings ***
 Documentation     Category: Active U-Boot Console Validation.
 ...
-...               Interrupts autoboot on a live reboot, inspects the actual
-...               running U-Boot environment via printenv, verifies key
-...               values match what the board is expected to report, then
-...               resumes normal boot and confirms the DUT still reaches a
-...               healthy login prompt. No environment variable is ever
-...               written -- this is read-only inspection layered on top of
-...               Category 1's reboot/capture primitives.
+...               Power-cycles the DUT with the relay (graceful shutdown over
+...               serial first), interrupts autoboot right after power is
+...               applied, inspects the actual running U-Boot environment via
+...               printenv, verifies key values match what the board is
+...               expected to report, then resumes normal boot and confirms
+...               the DUT still reaches a healthy login prompt. No environment
+...               variable is ever written -- this is read-only inspection
+...               layered on top of the same power-cycle/capture primitives
+...               the serial boot monitoring suite uses.
 Resource          ../../resources/serial_keywords.resource
 Resource          ../../resources/uboot_keywords.resource
-Suite Setup       Reboot Interrupt Capture Env And Resume Boot
-Suite Teardown    Ensure DUT Is Not Stuck At U-Boot Console
+Suite Setup       Power Cycle Interrupt Capture Env And Resume Boot
+Suite Teardown    Ensure DUT Is Powered And Not Stuck At U-Boot Console
 
 *** Test Cases ***
 Autoboot Should Be Interruptible And Reach U-Boot Console
@@ -67,8 +69,8 @@ DUT Should Resume Normal Boot After Console Inspection
     [Documentation]    The whole point of doing this read-only: after
     ...                being interrupted and inspected, the board must
     ...                still boot cleanly and within the same time budget
-    ...                as an uninterrupted reboot.
+    ...                as an uninterrupted cold boot.
     [Tags]    uboot    smoke
     Should Contain    ${BOOT_LOG}    ${BOOT_LOGIN_PROMPT}
-    Should Be True    ${BOOT_DURATION} <= ${BOOT_TIME_THRESHOLD_SEC}
-    ...    msg=Post-inspection boot took ${BOOT_DURATION}s, exceeding ${BOOT_TIME_THRESHOLD_SEC}s
+    Should Be True    ${BOOT_DURATION} <= ${COLD_BOOT_TIME_THRESHOLD_SEC}
+    ...    msg=Post-inspection boot took ${BOOT_DURATION}s, exceeding ${COLD_BOOT_TIME_THRESHOLD_SEC}s
