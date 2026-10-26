@@ -1,18 +1,20 @@
 *** Settings ***
 Documentation     Category 5: Reboot-cycle stress testing for the BeagleBone Black DUT.
 ...
-...               Suite Setup runs ${REBOOT_CYCLE_COUNT} consecutive reboot cycles, all
-...               over the serial console -- the exact same trigger-and-capture
-...               mechanism Category 1 uses for its single reboot, just repeated. This
-...               keeps the suite's core verdict independent of the network/SSH layers,
-...               which are Category 2/3's job to validate, not this suite's. Each test
-...               below analyzes a different aspect of the same captured dataset.
+...               Suite Setup runs ${REBOOT_CYCLE_COUNT} consecutive power cycles with
+...               the relay -- graceful shutdown over the serial console, power cut,
+...               power restored, then a capture from the first byte of the new boot
+...               (Cold Boot DUT, the same sequence Category 1 uses for its single cold
+...               boot). This keeps the suite's core verdict independent of the
+...               network/SSH layers, which are Category 2/3's job to validate, not
+...               this suite's. Each test below analyzes a different aspect of the same
+...               captured dataset.
 ...
 ...               Expect this suite to take several minutes to set up -- each cycle
-...               costs roughly one full boot.
+...               costs a graceful shutdown, the power-off hold and one full boot.
 Resource          ../../resources/stress_keywords.resource
 Suite Setup       Run Reboot Stress Cycles
-Suite Teardown    Close Serial Connection To DUT
+Suite Teardown    Restore Power And Close Serial
 Test Tags         stress
 
 
@@ -30,14 +32,14 @@ Reboot Cycle Success Rate Should Meet Minimum Threshold
 
 Boot Time Should Stay Within Threshold On Every Successful Cycle
     [Documentation]    For every cycle that did reach the login prompt, boot time must
-    ...    stay under ${BOOT_TIME_THRESHOLD_SEC}s -- the same calibrated threshold
-    ...    Category 1 uses for its single reboot. Catches a device that eventually
+    ...    stay under ${COLD_BOOT_TIME_THRESHOLD_SEC}s -- the same calibrated threshold
+    ...    Category 1 uses for its single cold boot. Catches a device that eventually
     ...    comes back but has degraded badly on a later cycle.
     ${successful}=    Get Successful Cycles    ${REBOOT_CYCLE_RESULTS}
     Should Not Be Empty    ${successful}    msg=No cycles succeeded, nothing to check
     FOR    ${cycle}    IN    @{successful}
-        Should Be True    $cycle['boot_time_sec'] <= $BOOT_TIME_THRESHOLD_SEC
-        ...    msg=Cycle ${cycle}[cycle] took ${cycle}[boot_time_sec]s, over threshold of ${BOOT_TIME_THRESHOLD_SEC}s
+        Should Be True    $cycle['boot_time_sec'] <= $COLD_BOOT_TIME_THRESHOLD_SEC
+        ...    msg=Cycle ${cycle}[cycle] took ${cycle}[boot_time_sec]s, over threshold of ${COLD_BOOT_TIME_THRESHOLD_SEC}s
     END
 
 Boot Time Variance Should Remain Low Across Cycles
