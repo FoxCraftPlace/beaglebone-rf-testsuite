@@ -5,8 +5,12 @@
 pipeline {
     agent { label 'pi-host' }
 
+    triggers {
+        cron('H 2 * * *')
+    }
+
     options {
-        timeout(time: 20, unit: 'MINUTES')
+        timeout(time: 30, unit: 'MINUTES')
         timestamps()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '30'))
@@ -37,6 +41,8 @@ pipeline {
             steps {
                 sh '''
                     set -eu
+                    mkdir -p results
+                    find results -mindepth 1 ! -name .gitkeep -delete
                     install -m 600 /etc/bbb-bench/secrets.py config/secrets.py
                     python3 -m venv venv
                     . venv/bin/activate
@@ -55,9 +61,47 @@ pipeline {
                 '''
             }
         }
+
+        stage('Full suite') {
+            steps {
+                sh '''
+                    set -eu
+                    . venv/bin/activate
+                    robot --outputdir results \
+                        tests/serial tests/uboot tests/network tests/ssh tests/logs tests/stress
+                '''
+            }
+        }
     }
 
     post {
+        always {
+            // Safety net for failure, abort and timeout: leave the DUT powered.
+            // Release means power on with the NC wiring used on this bench.
+            catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                sh '''
+                    set -eu
+                    . venv/bin/activate
+                    PYTHONPATH=libraries python - <<'PY'
+import runpy
+from RelayPower import RelayPower
+c = runpy.run_path("config/constants.py")
+RelayPower(c["RELAY_PORT"], c["RELAY_BAUDRATE"],
+           c["RELAY_CMD_ENERGIZE_HEX"], c["RELAY_CMD_RELEASE_HEX"]).relay_release()
+print("relay released: DUT is powered")
+PY
+                '''
+            }
+            sh '''
+                if [ -f results/output.xml ]; then
+                    echo "WARN entries: $(grep -ac 'level="WARN"' results/output.xml || true)"
+                fi
+            '''
+            archiveArtifacts artifacts: 'results/**', allowEmptyArchive: true
+            catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                robot outputPath: 'results'
+            }
+        }
         cleanup {
             sh 'rm -f config/secrets.py'
         }
