@@ -102,8 +102,3 @@ Login To Serial Console And Run Command
     Write Data    ${BBB_SSH_PASSWORD}\r\n
     Read Serial Until    ${SHELL_PROMPT_MARKER}    timeout_s=10
     Write Data    ${command}\r\n
-
-Login To Serial Console And Trigger Reboot
-    [Documentation]    Soft reboot over serial -- kept for suites that
-    ...                deliberately test the warm-reset path.
-    Login To Serial Console And Run Command    reboot
