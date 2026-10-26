@@ -22,9 +22,13 @@ Capture Boot Log Until Login Prompt
     ...                sends a bare Enter to nudge the console into
     ...                reprinting the prompt, covering cases where it was
     ...                missed due to serial framing desync right after the
-    ...                fresh getty process starts post-reboot. Returns the
-    ...                captured text and the elapsed seconds.
-    [Arguments]    ${max_wait}=90
+    ...                fresh getty process starts post-reboot. Nudging only
+    ...                starts after nudge_after_s seconds (default 0 = from
+    ...                the first interval) -- after a relay power-on it must
+    ...                be delayed so a keypress cannot interrupt U-Boot
+    ...                autoboot. Returns the captured text and the elapsed
+    ...                seconds.
+    [Arguments]    ${max_wait}=90    ${nudge_after_s}=0
     ${start}=    Get Time    epoch
     ${buffer}=    Set Variable    ${EMPTY}
     FOR    ${i}    IN RANGE    ${max_wait}
@@ -33,7 +37,7 @@ Capture Boot Log Until Login Prompt
         ${found}=    Run Keyword And Return Status
         ...    Should Contain    ${buffer}    ${BOOT_LOGIN_PROMPT}
         IF    ${found}    BREAK
-        ${nudge_due}=    Evaluate    ${i} % 5 == 0 and ${i} > 0
+        ${nudge_due}=    Evaluate    ${i} % 5 == 0 and ${i} > ${nudge_after_s}
         IF    ${nudge_due}    Write Data    \r\n
         Sleep    1s
     END
@@ -67,17 +71,39 @@ Read Serial Until
     ...    msg=Timed out waiting for '${marker}' on the serial console
     RETURN    ${buffer}
 
-Login To Serial Console And Trigger Reboot
+Wait For Serial Marker Or Timeout
+    [Documentation]    Tolerant sibling of Read Serial Until: never fails. Returns
+    ...                whether the marker was seen and everything captured, so the
+    ...                caller can decide what a missing marker means.
+    [Arguments]    ${marker}    ${timeout_s}=15
+    ${buffer}=    Set Variable    ${EMPTY}
+    ${found}=    Set Variable    ${FALSE}
+    FOR    ${i}    IN RANGE    ${timeout_s}
+        ${chunk}=    Read All Data
+        ${buffer}=    Catenate    SEPARATOR=${EMPTY}    ${buffer}    ${chunk}
+        ${found}=    Run Keyword And Return Status
+        ...    Should Contain    ${buffer}    ${marker}
+        IF    ${found}    BREAK
+        Sleep    1s
+    END
+    RETURN    ${found}    ${buffer}
+
+Login To Serial Console And Run Command
     [Documentation]    Wakes the console with a bare Enter (agetty only
     ...                reprints the login prompt on request), authenticates
-    ...                with the DUT's serial credentials, then issues
-    ...                'reboot'. Keeps this suite fully independent of
-    ...                SSH/network — appropriate for a boot-monitoring
-    ...                suite whose whole point is validating the boot path.
+    ...                with the DUT's serial credentials, then sends the given
+    ...                command. Keeps serial-based suites fully independent of
+    ...                SSH/network.
+    [Arguments]    ${command}
     Write Data    \r\n
     Read Serial Until    login:    timeout_s=10
     Write Data    ${BBB_SSH_USER}\r\n
     Read Serial Until    Password:    timeout_s=10
     Write Data    ${BBB_SSH_PASSWORD}\r\n
     Read Serial Until    ${SHELL_PROMPT_MARKER}    timeout_s=10
-    Write Data    reboot\r\n
+    Write Data    ${command}\r\n
+
+Login To Serial Console And Trigger Reboot
+    [Documentation]    Soft reboot over serial -- kept for suites that
+    ...                deliberately test the warm-reset path.
+    Login To Serial Console And Run Command    reboot
