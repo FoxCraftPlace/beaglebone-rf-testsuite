@@ -78,3 +78,12 @@ Cold Boot DUT
     ${log}    ${duration}=    Capture Boot Log Until Login Prompt
     ...    ${COLD_BOOT_CAPTURE_TIMEOUT_SEC}    nudge_after_s=${COLD_BOOT_NUDGE_AFTER_SEC}
     RETURN    ${log}    ${duration}
+
+Restore Power And Close Serial
+    [Documentation]    Suite teardown for suites that power-cycle the DUT. Whatever
+    ...                happened in the suite, never leave the bench with the DUT
+    ...                unpowered (releasing a relay that is already released changes
+    ...                nothing), then release the serial port. A failing relay is
+    ...                reported but does not keep the port open.
+    Run Keyword And Continue On Failure    Power On DUT
+    Close Serial Connection To DUT
