@@ -55,8 +55,16 @@ Network And Storage Drivers Should Initialize
     Should Contain    ${BOOT_LOG}    OMAP SD/MMC
 
 Root Filesystem Should Be Clean
+    [Documentation]    The root filesystem must be clean and need no journal recovery.
+    ...                'rootfs: recovering journal' was seen on this bench only after
+    ...                a power cut without shutdown (Hard Power Cycle DUT), so its
+    ...                presence here also exposes a graceful shutdown that silently
+    ...                fell back to a plain power cut.
     [Tags]    serial    filesystem
     Should Contain    ${BOOT_LOG}    rootfs: clean
+    Should Not Contain    ${BOOT_LOG}    rootfs: recovering journal
+    ...    msg=Boot log shows journal recovery: power was cut without a completed shutdown
+    ...    values=False
 
 *** Keywords ***
 Power Cycle DUT And Capture Boot Log
