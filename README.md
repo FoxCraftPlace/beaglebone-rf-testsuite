@@ -6,7 +6,7 @@ Hardware-in-the-Loop test automation for a BeagleBone Black, written in Robot Fr
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-ARM64%20%7C%20Raspberry%20Pi%205-A22846?logo=raspberrypi&logoColor=white)
 ![DUT](https://img.shields.io/badge/DUT-BeagleBone%20Black-00CC66)
-![Tests](https://img.shields.io/badge/tests-35%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-36%20passing-2ea44f)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 
 This is a Robot Framework test suite for a BeagleBone Black, driven from a Raspberry Pi 5 over serial and Ethernet, with a USB relay switching the board's power. It power-cycles the board with the relay, watches the cold boot over UART, inspects the U-Boot environment mid-boot, brings the board up on the network, checks its running state over SSH, and runs five consecutive power cycles to check that the boots succeed in a consistent time — producing a Robot Framework report and log on each run.
@@ -21,7 +21,7 @@ Every test runs against physical hardware: a real BeagleBone Black connected to 
 | **Transports**         | Serial UART (115200 8N1) · direct peer-to-peer Ethernet · SSH      |
 | **Power Control**      | USB-serial relay (CH340) in the DUT's positive 5 V lead, driven over pyserial |
 | **Boot Image**         | BeagleBoard.org Debian Buster IoT Image 2020-04-06 — U-Boot 2019.04-00002-g31a8ae0206, kernel 4.19.94-ti-r42 |
-| **Coverage**           | 35 test cases across 6 suites                                      |
+| **Coverage**           | 36 test cases across 6 suites                                      |
 
 ---
 
@@ -110,7 +110,7 @@ The DUT's 5 V supply runs through a 1-channel USB-serial relay module (CH340 int
 | `Graceful Power Cycle DUT` | Logs in over the serial console, runs `poweroff`, waits for the `Power down` marker (up to 60 s), cuts power, holds 5 s, restores power; returns without capturing the console. If the login fails or the marker does not appear, it logs a WARN and cuts power anyway |
 | `Cold Boot DUT` | `Graceful Power Cycle DUT`, then captures the console from the first byte after power-on until the `login:` prompt; returns the log and the elapsed seconds |
 | `Hard Power Cycle DUT` | Cuts and restores power with no shutdown |
-| `Restore Power And Close Serial` | Suite teardown for the suites that cut power: restores power whatever happened in the suite, then closes the serial port |
+| `Restore Power And Close Serial` | Suite teardown of the serial boot monitoring and stress suites: restores power whatever happened in the suite, then closes the serial port |
 
 After power-on the console is not nudged with Enter for the first 30 s (`COLD_BOOT_NUDGE_AFTER_SEC`): the U-Boot autoboot delay is 0 and a keypress during startup interrupts autoboot — the U-Boot suite relies on exactly that — so an early nudge would stop the board at the U-Boot prompt.
 
@@ -168,7 +168,7 @@ Each `.robot` test file sits on top of the `.resource` keyword files for its lay
 
 ## Test Suite
 
-**35 test cases across six suites**, ordered by dependency.
+**36 test cases across six suites**, ordered by dependency.
 
 ### Serial / Boot Monitoring — 7 tests
 `tests/serial/boot_monitoring_test.robot`
@@ -186,7 +186,7 @@ Shuts the DUT down over the serial console, cuts and restores its power with the
 ### U-Boot Console Validation — 7 tests
 `tests/uboot/uboot_console_test.robot`
 
-Power-cycles the DUT with the relay, interrupts autoboot right after power is applied, inspects the running U-Boot environment via `printenv`, then resumes normal boot. Entirely read-only — no environment variable is ever written or saved.
+Power-cycles the DUT with the relay, interrupts autoboot right after power is applied, inspects the running U-Boot environment via `printenv`, then resumes normal boot. Entirely read-only — no environment variable is ever written or saved. Its Suite Teardown always releases the relay and closes the serial port, and writes `boot` only while the board is still held at the `=>` prompt.
 
 - Autoboot Should Be Interruptible And Reach U-Boot Console
 - Board Identity Should Match Expected Values
@@ -219,11 +219,12 @@ Opens a single shared SSH session in Suite Setup and checks the DUT's live runni
 - Critical Services Should Be Active (`ssh`, `connman`)
 - Device Should Not Have Rebooted Unexpectedly During The Test Session (uptime has not dropped since the session was opened, so it covers the duration of that session only)
 
-### Log Analysis — 5 tests
+### Log Analysis — 6 tests
 `tests/logs/log_test.robot`
 
 Reads the kernel ring buffer (`dmesg`) and the systemd journal (`journalctl`) over the same SSH session pattern, catching faults that occur after boot completes and signs of an unclean prior shutdown.
 
+- SSH Session Should Be Available For Log Analysis (fails with the connection error if the session could not be opened; the tests below then skip, so an unreachable board cannot produce a green run)
 - Dmesg Should Contain No Critical Kernel Failures (the same fatal patterns, checked on the live kernel ring buffer)
 - Dmesg Should Not Contain Out Of Memory Killer Events (`Out of memory`, `oom-killer`, `Killed process`)
 - Current Boot Journal Should Not Exceed Error Threshold (≤ 12 entries at priority `err` or higher: 9 measured on a real boot plus a 25% margin)
@@ -319,7 +320,7 @@ Every run produces a standard Robot Framework `report.html` and `log.html` in `r
 - **Graceful by default** — power is cut after `poweroff`; if the shutdown fails, the suites log a WARN and cut power anyway. Cutting power with no shutdown is a separate keyword.
 - **Power restored in teardown** — the suites that cut power restore it in Suite Teardown, so a failed run does not leave the DUT unpowered.
 - **Single shared session per suite** — one connection opened in Suite Setup, reused by every test.
-- **Capture, don't raise, on setup failure** — connection errors are stored as suite variables; later tests skip instead of failing on an opaque error.
+- **Capture, don't raise, on setup failure** — connection errors are stored as suite variables; the first test of each SSH-based suite fails with the stored error and the later tests skip, instead of failing on an opaque error.
 - **Fatal patterns over naive string matching** (see War Story #2).
 
 ---
