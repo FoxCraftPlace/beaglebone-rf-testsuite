@@ -315,6 +315,8 @@ The UART adapter was assumed to be an FTDI device, which would have allowed tell
 
 Every run produces a standard Robot Framework `report.html` and `log.html` in `results/`, and the serial and stress suites save each captured boot log next to them as `boot_log_<unix time>.txt`. On this bench, the Raspberry Pi also runs nginx to serve the latest report over the local network, auto-updating as new runs complete — no separate publish step required.
 
+A sample report from a full run (36/36 passed) is available: [report.html](https://foxcraftplace.github.io/beaglebone-rf-testsuite/sample-report/report.html) · [log.html](https://foxcraftplace.github.io/beaglebone-rf-testsuite/sample-report/log.html)
+
 ---
 
 ## CI (Jenkins)
