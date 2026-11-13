@@ -60,6 +60,7 @@ A few things about how this suite is built:
 ---
 
 ## The Test Bench
+![Test bench: Raspberry Pi 5 + BeagleBone Black](docs/images/boards.jpg)
 
 ```
 ┌──────────────────────┐                                  ┌──────────────────────┐
